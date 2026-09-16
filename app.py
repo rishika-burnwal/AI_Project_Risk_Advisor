@@ -1,5 +1,9 @@
 import streamlit as st
 
+from agents.scope_agent import scope_agent
+from agents.risk_agent import risk_agent
+from agents.blocker_agent import blocker_agent
+
 from ingestion.loader import extract_text
 from rag.chunking import create_chunks
 from rag.embeddings import generate_embeddings
@@ -59,6 +63,7 @@ st.subheader("📄 Project Document")
 uploaded_file = st.file_uploader(
     "Upload PDF, DOCX, CSV or TXT",
     type=["pdf", "docx", "csv", "txt"],
+    accept_multiple_files=True,
     key="project_document_uploader"
 )
 
@@ -94,7 +99,7 @@ if st.button(
     # CHECK INPUT
     # --------------------------------------------------------
 
-    if uploaded_file is None and not plain_text.strip():
+    if not uploaded_file and not plain_text.strip():
 
         st.warning(
             "⚠️ Please upload a document or enter project information."
@@ -434,4 +439,215 @@ if st.session_state.data_processed:
 
             st.error(
                 f"❌ Search failed: {e}"
+            )
+
+
+    # =========================================================
+    # MILESTONE 2 — PROJECT INTELLIGENCE
+    # =========================================================
+
+    st.divider()
+
+    st.subheader("🤖 Project Intelligence")
+
+    st.write(
+        "Analyze the project using AI agents based on "
+        "information retrieved from the project knowledge base."
+    )
+
+
+    # ---------------------------------------------------------
+    # SELECT AGENT
+    # ---------------------------------------------------------
+
+    agent_type = st.selectbox(
+        "Select Analysis Type",
+        [
+            "Scope & Deliverables",
+            "Risks & Delivery Forecast",
+            "Blockers & Action Items"
+        ],
+        key="agent_type"
+    )
+
+
+    # ---------------------------------------------------------
+    # QUESTION INPUT
+    # ---------------------------------------------------------
+
+    agent_question = st.text_input(
+        "Enter your project question",
+        placeholder=(
+            "Example: What are the main project deliverables?"
+        ),
+        key="agent_question"
+    )
+
+
+    # ---------------------------------------------------------
+    # ANALYZE BUTTON
+    # ---------------------------------------------------------
+
+    if st.button(
+        "🤖 Analyze Project",
+        use_container_width=True,
+        key="analyze_project"
+    ):
+
+        # -----------------------------------------------------
+        # CHECK QUESTION
+        # -----------------------------------------------------
+
+        if not agent_question.strip():
+
+            st.warning(
+                "⚠️ Please enter a project question."
+            )
+
+            st.stop()
+
+
+        try:
+
+            print("\n")
+            print("=" * 60)
+            print("PROJECT INTELLIGENCE ANALYSIS")
+            print("=" * 60)
+
+            print(
+                f"Question: {agent_question}"
+            )
+
+            print(
+                f"Agent: {agent_type}"
+            )
+
+
+            # =================================================
+            # STEP 1 — CREATE QUESTION EMBEDDING
+            # =================================================
+
+            with st.spinner(
+                "🤖 Analyzing project..."
+            ):
+
+                question_embedding = generate_embeddings(
+                    [agent_question]
+                )[0]
+
+                print(
+                    "✓ Question embedding generated"
+                )
+
+
+                # =================================================
+                # STEP 2 — RETRIEVE CONTEXT FROM CHROMADB
+                # =================================================
+
+                results = search_documents(
+                    question_embedding,
+                    n_results=3
+                )
+
+                print(
+                    f"✓ Retrieved {len(results)} relevant chunks"
+                )
+
+
+                # =================================================
+                # STEP 3 — CREATE CONTEXT
+                # =================================================
+
+                context = "\n\n".join(results)
+
+                print(
+                    "✓ Project context prepared"
+                )
+
+
+                # =================================================
+                # STEP 4 — SELECT AGENT
+                # =================================================
+
+                if agent_type == "Scope & Deliverables":
+
+                    result = scope_agent(
+                        context,
+                        agent_question
+                    )
+
+                    print(
+                        "✓ Scope Agent executed"
+                    )
+
+
+                elif agent_type == "Risks & Delivery Forecast":
+
+                    result = risk_agent(
+                        context,
+                        agent_question
+                    )
+
+                    print(
+                        "✓ Risk Agent executed"
+                    )
+
+
+                else:
+
+                    result = blocker_agent(
+                        context,
+                        agent_question
+                    )
+
+                    print(
+                        "✓ Blocker Agent executed"
+                    )
+
+
+            # =================================================
+            # ANALYSIS COMPLETED
+            # =================================================
+
+            print(
+                "✓ Agent analysis completed"
+            )
+
+            print("=" * 60)
+            print(
+                "PROJECT INTELLIGENCE COMPLETED"
+            )
+            print("=" * 60)
+            print("\n")
+
+
+            # =================================================
+            # DISPLAY RESULT
+            # =================================================
+
+            st.success(
+                "✅ Project analysis completed successfully."
+            )
+
+            st.subheader(
+                "📊 Project Analysis"
+            )
+
+            st.write(result)
+
+
+        except Exception as e:
+
+            print("\n")
+            print("=" * 60)
+            print(
+                "ERROR DURING PROJECT INTELLIGENCE ANALYSIS"
+            )
+            print("=" * 60)
+            print(e)
+            print("=" * 60)
+            print("\n")
+
+            st.error(
+                f"❌ Agent analysis failed: {e}"
             )
