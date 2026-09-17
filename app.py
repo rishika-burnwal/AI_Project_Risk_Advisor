@@ -15,10 +15,6 @@ from rag.vector_store import (
 )
 
 
-# ============================================================
-# PAGE CONFIGURATION
-# ============================================================
-
 st.set_page_config(
     page_title="AI Project Intelligence & Risk Advisor",
     page_icon="📊",
@@ -26,23 +22,15 @@ st.set_page_config(
 )
 
 
-# ============================================================
-# SESSION STATE
-# ============================================================
-
 if "data_processed" not in st.session_state:
     st.session_state.data_processed = False
 
 if "processed_source" not in st.session_state:
-    st.session_state.processed_source = ""
+    st.session_state.processed_source = []
 
 if "stored_chunks" not in st.session_state:
     st.session_state.stored_chunks = 0
 
-
-# ============================================================
-# HEADER
-# ============================================================
 
 st.title("📊 AI Project Intelligence & Risk Advisor")
 
@@ -54,23 +42,15 @@ st.write(
 st.divider()
 
 
-# ============================================================
-# DOCUMENT INPUT
-# ============================================================
-
 st.subheader("📄 Project Document")
 
-uploaded_file = st.file_uploader(
+uploaded_files = st.file_uploader(
     "Upload PDF, DOCX, CSV or TXT",
     type=["pdf", "docx", "csv", "txt"],
     accept_multiple_files=True,
     key="project_document_uploader"
 )
 
-
-# ============================================================
-# PLAIN TEXT INPUT
-# ============================================================
 
 st.markdown("**OR enter project information manually**")
 
@@ -85,21 +65,13 @@ plain_text = st.text_area(
 )
 
 
-# ============================================================
-# PROCESS PROJECT DATA
-# ============================================================
-
 if st.button(
     "🚀 Process Project Data",
     use_container_width=True,
     key="process_project_data"
 ):
 
-    # --------------------------------------------------------
-    # CHECK INPUT
-    # --------------------------------------------------------
-
-    if not uploaded_file and not plain_text.strip():
+    if not uploaded_files and not plain_text.strip():
 
         st.warning(
             "⚠️ Please upload a document or enter project information."
@@ -110,124 +82,190 @@ if st.button(
 
     try:
 
-        # ====================================================
-        # 1. DOCUMENT INGESTION
-        # ====================================================
-
         print("\n")
         print("=" * 60)
         print("DOCUMENT PROCESSING STARTED")
         print("=" * 60)
 
 
-        if uploaded_file is not None:
+        total_processed_chunks = 0
+        processed_filenames = []
 
-            text = extract_text(uploaded_file)
 
-            filename = uploaded_file.name
+        if uploaded_files:
 
-            source = f"Uploaded: {filename}"
+            print(
+                f"✓ {len(uploaded_files)} project documents received"
+            )
 
-            print(f"✓ File received: {filename}")
 
-        else:
+            for uploaded_file in uploaded_files:
+
+                print("\n")
+                print("-" * 60)
+                print(
+                    f"PROCESSING FILE: {uploaded_file.name}"
+                )
+                print("-" * 60)
+
+
+                text = extract_text(uploaded_file)
+
+                filename = uploaded_file.name
+
+
+                print(
+                    f"✓ File received: {filename}"
+                )
+
+
+                if not text or not text.strip():
+
+                    print(
+                        f"⚠️ No readable text found in {filename}"
+                    )
+
+                    continue
+
+
+                print(
+                    "✓ Document text extracted successfully"
+                )
+
+
+                with st.spinner(
+                    f"✂️ Creating document chunks for {filename}..."
+                ):
+
+                    chunks = create_chunks(text)
+
+
+                print(
+                    f"✓ {len(chunks)} document chunks created"
+                )
+
+
+                with st.spinner(
+                    f"🔢 Generating embeddings for {filename}..."
+                ):
+
+                    embeddings = generate_embeddings(chunks)
+
+
+                print(
+                    f"✓ Embeddings created for "
+                    f"{len(embeddings)} chunks"
+                )
+
+
+                with st.spinner(
+                    f"🗄️ Storing {filename} in ChromaDB..."
+                ):
+
+                    count = store_documents(
+                        chunks,
+                        embeddings,
+                        filename
+                    )
+
+
+                total_processed_chunks += count
+
+                processed_filenames.append(filename)
+
+
+                print(
+                    f"✓ Successfully stored {count} chunks "
+                    f"from {filename}"
+                )
+
+
+        if plain_text.strip():
+
+            print("\n")
+            print("-" * 60)
+            print("PROCESSING MANUAL PROJECT INFORMATION")
+            print("-" * 60)
+
 
             text = plain_text
 
             filename = "manual_project_information.txt"
 
-            source = "Manual Text Input"
 
-            print("✓ Manual project information received")
-
-
-        # ----------------------------------------------------
-        # CHECK EXTRACTED TEXT
-        # ----------------------------------------------------
-
-        if not text or not text.strip():
-
-            st.error(
-                "❌ No readable text was found in the provided input."
+            print(
+                "✓ Manual project information received"
             )
 
-            print("✗ No readable text found")
-
-            st.stop()
-
-
-        print("✓ Document text extracted successfully")
-
-
-        # ====================================================
-        # 2. CHUNKING
-        # ====================================================
-
-        with st.spinner(
-            "✂️ Creating document chunks..."
-        ):
 
             chunks = create_chunks(text)
 
 
-        print(
-            f"✓ {len(chunks)} document chunks created"
-        )
+            print(
+                f"✓ {len(chunks)} document chunks created"
+            )
 
-
-        # ====================================================
-        # 3. EMBEDDINGS
-        # ====================================================
-
-        with st.spinner(
-            "🔢 Generating embeddings..."
-        ):
 
             embeddings = generate_embeddings(chunks)
 
 
-        print(
-            f"✓ Embeddings created for {len(embeddings)} chunks"
-        )
+            print(
+                f"✓ Embeddings created for "
+                f"{len(embeddings)} chunks"
+            )
 
-
-        # ====================================================
-        # 4. STORE IN CHROMADB
-        # ====================================================
-
-        with st.spinner(
-            "🗄️ Storing information in ChromaDB..."
-        ):
 
             count = store_documents(
                 chunks,
                 embeddings,
                 filename
             )
-            total_documents = get_unique_document_count()
-            total_chunks = get_document_count()
+
+
+            total_processed_chunks += count
+
+            processed_filenames.append(filename)
+
+
+            print(
+                f"✓ Successfully stored {count} chunks "
+                "from manual project information"
+            )
+
+
+        total_documents = get_unique_document_count()
+
+        total_chunks = get_document_count()
+
+
+        print("\n")
+        print("=" * 60)
+        print("DOCUMENT PROCESSING SUMMARY")
+        print("=" * 60)
+
 
         print(
-    f"✓ Successfully stored {count} chunks in ChromaDB"
-)
-
-        print(
-    f"✓ Total documents uploaded so far: {total_documents}"
-)
-
-
-        print(
-    f"✓ Total chunks currently in ChromaDB: {total_chunks}"
-)
-
-
-        print(
-            f"✓ Successfully stored {count} chunks in ChromaDB"
+            f"✓ Documents processed in this upload: "
+            f"{len(processed_filenames)}"
         )
+
+
+        print(
+            f"✓ Total documents in ChromaDB: "
+            f"{total_documents}"
+        )
+
+
+        print(
+            f"✓ Total chunks currently in ChromaDB: "
+            f"{total_chunks}"
+        )
+
 
         print(
             "✓ ChromaDB is ready for retrieval"
         )
+
 
         print("=" * 60)
         print("DOCUMENT PROCESSING COMPLETED")
@@ -235,30 +273,26 @@ if st.button(
         print("\n")
 
 
-        # ====================================================
-        # UPDATE SESSION STATE
-        # ====================================================
-
         st.session_state.data_processed = True
 
-        st.session_state.processed_source = source
+        st.session_state.processed_source = processed_filenames
 
-        st.session_state.stored_chunks = count
+        st.session_state.stored_chunks = total_processed_chunks
 
-
-        # ====================================================
-        # SUCCESS MESSAGE
-        # ====================================================
 
         st.success(
             "✅ Project information successfully stored in ChromaDB!"
         )
 
-        st.caption(source)
+
+        st.caption(
+            "Uploaded: " + ", ".join(processed_filenames)
+        )
+
 
         st.info(
-            f"📚 {count} document chunks are now available "
-            "for knowledge-base search."
+            f"📚 {total_processed_chunks} document chunks are now "
+            "available for knowledge-base search."
         )
 
 
@@ -278,12 +312,7 @@ if st.button(
         )
 
 
-# ============================================================
-# ASK ABOUT PROJECT
-# ============================================================
 
-# IMPORTANT:
-# This entire section appears ONLY after successful processing.
 
 if st.session_state.data_processed:
 
@@ -297,10 +326,6 @@ if st.session_state.data_processed:
     )
 
 
-    # --------------------------------------------------------
-    # QUESTION INPUT
-    # --------------------------------------------------------
-
     question = st.text_input(
         "Enter your question",
         placeholder=(
@@ -310,20 +335,12 @@ if st.session_state.data_processed:
     )
 
 
-    # --------------------------------------------------------
-    # SEARCH BUTTON
-    # --------------------------------------------------------
-
     if st.button(
         "🔍 Search Knowledge Base",
         use_container_width=True,
         key="search_knowledge_base"
     ):
 
-
-        # ----------------------------------------------------
-        # CHECK QUESTION
-        # ----------------------------------------------------
 
         if not question.strip():
 
@@ -336,9 +353,6 @@ if st.session_state.data_processed:
 
         try:
 
-            # =================================================
-            # SEARCH CHROMADB
-            # =================================================
 
             print("\n")
             print("=" * 60)
@@ -355,10 +369,6 @@ if st.session_state.data_processed:
             ):
 
 
-                # ---------------------------------------------
-                # CREATE QUESTION EMBEDDING
-                # ---------------------------------------------
-
                 question_embedding = generate_embeddings(
                     [question]
                 )[0]
@@ -368,10 +378,6 @@ if st.session_state.data_processed:
                     "✓ Question embedding generated"
                 )
 
-
-                # ---------------------------------------------
-                # SEARCH VECTOR DATABASE
-                # ---------------------------------------------
 
                 results = search_documents(
                     question_embedding,
@@ -390,10 +396,6 @@ if st.session_state.data_processed:
             print("=" * 60)
             print("\n")
 
-
-            # =================================================
-            # DISPLAY SEARCH RESULTS
-            # =================================================
 
             if results:
 
@@ -442,10 +444,6 @@ if st.session_state.data_processed:
             )
 
 
-    # =========================================================
-    # MILESTONE 2 — PROJECT INTELLIGENCE
-    # =========================================================
-
     st.divider()
 
     st.subheader("🤖 Project Intelligence")
@@ -455,10 +453,6 @@ if st.session_state.data_processed:
         "information retrieved from the project knowledge base."
     )
 
-
-    # ---------------------------------------------------------
-    # SELECT AGENT
-    # ---------------------------------------------------------
 
     agent_type = st.selectbox(
         "Select Analysis Type",
@@ -471,10 +465,6 @@ if st.session_state.data_processed:
     )
 
 
-    # ---------------------------------------------------------
-    # QUESTION INPUT
-    # ---------------------------------------------------------
-
     agent_question = st.text_input(
         "Enter your project question",
         placeholder=(
@@ -484,19 +474,12 @@ if st.session_state.data_processed:
     )
 
 
-    # ---------------------------------------------------------
-    # ANALYZE BUTTON
-    # ---------------------------------------------------------
-
     if st.button(
         "🤖 Analyze Project",
         use_container_width=True,
         key="analyze_project"
     ):
 
-        # -----------------------------------------------------
-        # CHECK QUESTION
-        # -----------------------------------------------------
 
         if not agent_question.strip():
 
@@ -523,10 +506,6 @@ if st.session_state.data_processed:
             )
 
 
-            # =================================================
-            # STEP 1 — CREATE QUESTION EMBEDDING
-            # =================================================
-
             with st.spinner(
                 "🤖 Analyzing project..."
             ):
@@ -540,10 +519,6 @@ if st.session_state.data_processed:
                 )
 
 
-                # =================================================
-                # STEP 2 — RETRIEVE CONTEXT FROM CHROMADB
-                # =================================================
-
                 results = search_documents(
                     question_embedding,
                     n_results=3
@@ -554,20 +529,12 @@ if st.session_state.data_processed:
                 )
 
 
-                # =================================================
-                # STEP 3 — CREATE CONTEXT
-                # =================================================
-
                 context = "\n\n".join(results)
 
                 print(
                     "✓ Project context prepared"
                 )
 
-
-                # =================================================
-                # STEP 4 — SELECT AGENT
-                # =================================================
 
                 if agent_type == "Scope & Deliverables":
 
@@ -605,10 +572,6 @@ if st.session_state.data_processed:
                     )
 
 
-            # =================================================
-            # ANALYSIS COMPLETED
-            # =================================================
-
             print(
                 "✓ Agent analysis completed"
             )
@@ -620,10 +583,6 @@ if st.session_state.data_processed:
             print("=" * 60)
             print("\n")
 
-
-            # =================================================
-            # DISPLAY RESULT
-            # =================================================
 
             st.success(
                 "✅ Project analysis completed successfully."
