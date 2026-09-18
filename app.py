@@ -312,8 +312,6 @@ if st.button(
         )
 
 
-
-
 if st.session_state.data_processed:
 
     st.divider()
@@ -352,7 +350,6 @@ if st.session_state.data_processed:
 
 
         try:
-
 
             print("\n")
             print("=" * 60)
@@ -449,8 +446,8 @@ if st.session_state.data_processed:
     st.subheader("🤖 Project Intelligence")
 
     st.write(
-        "Analyze the project using AI agents based on "
-        "information retrieved from the project knowledge base."
+        "Select an analysis type to automatically retrieve "
+        "relevant information from the project knowledge base."
     )
 
 
@@ -465,30 +462,11 @@ if st.session_state.data_processed:
     )
 
 
-    agent_question = st.text_input(
-        "Enter your project question",
-        placeholder=(
-            "Example: What are the main project deliverables?"
-        ),
-        key="agent_question"
-    )
-
-
     if st.button(
         "🤖 Analyze Project",
         use_container_width=True,
         key="analyze_project"
     ):
-
-
-        if not agent_question.strip():
-
-            st.warning(
-                "⚠️ Please enter a project question."
-            )
-
-            st.stop()
-
 
         try:
 
@@ -498,24 +476,53 @@ if st.session_state.data_processed:
             print("=" * 60)
 
             print(
-                f"Question: {agent_question}"
-            )
-
-            print(
                 f"Agent: {agent_type}"
             )
 
 
             with st.spinner(
-                "🤖 Analyzing project..."
+                "🤖 Retrieving and analyzing project information..."
             ):
 
-                question_embedding = generate_embeddings(
-                    [agent_question]
-                )[0]
+
+                if agent_type == "Scope & Deliverables":
+
+                    retrieval_query = (
+                        "project goal requirements deliverables "
+                        "milestones timeline responsibilities"
+                    )
+
+
+                elif agent_type == "Risks & Delivery Forecast":
+
+                    retrieval_query = (
+                        "project risks schedule delays dependencies "
+                        "delivery challenges potential delays"
+                    )
+
+
+                else:
+
+                    retrieval_query = (
+                        "project blockers unresolved issues "
+                        "pending decisions action items "
+                        "assigned persons due dates"
+                    )
+
 
                 print(
-                    "✓ Question embedding generated"
+                    f"✓ Automatic retrieval query created: "
+                    f"{retrieval_query}"
+                )
+
+
+                question_embedding = generate_embeddings(
+                    [retrieval_query]
+                )[0]
+
+
+                print(
+                    "✓ Analysis query embedding generated"
                 )
 
 
@@ -524,6 +531,7 @@ if st.session_state.data_processed:
                     n_results=3
                 )
 
+
                 print(
                     f"✓ Retrieved {len(results)} relevant chunks"
                 )
@@ -531,8 +539,9 @@ if st.session_state.data_processed:
 
                 context = "\n\n".join(results)
 
+
                 print(
-                    "✓ Project context prepared"
+                    "✓ Relevant project context prepared"
                 )
 
 
@@ -540,8 +549,9 @@ if st.session_state.data_processed:
 
                     result = scope_agent(
                         context,
-                        agent_question
+                        retrieval_query
                     )
+
 
                     print(
                         "✓ Scope Agent executed"
@@ -552,8 +562,9 @@ if st.session_state.data_processed:
 
                     result = risk_agent(
                         context,
-                        agent_question
+                        retrieval_query
                     )
+
 
                     print(
                         "✓ Risk Agent executed"
@@ -564,8 +575,9 @@ if st.session_state.data_processed:
 
                     result = blocker_agent(
                         context,
-                        agent_question
+                        retrieval_query
                     )
+
 
                     print(
                         "✓ Blocker Agent executed"
@@ -577,10 +589,13 @@ if st.session_state.data_processed:
             )
 
             print("=" * 60)
+
             print(
                 "PROJECT INTELLIGENCE COMPLETED"
             )
+
             print("=" * 60)
+
             print("\n")
 
 
@@ -588,9 +603,11 @@ if st.session_state.data_processed:
                 "✅ Project analysis completed successfully."
             )
 
+
             st.subheader(
                 "📊 Project Analysis"
             )
+
 
             st.write(result)
 
@@ -606,6 +623,7 @@ if st.session_state.data_processed:
             print(e)
             print("=" * 60)
             print("\n")
+
 
             st.error(
                 f"❌ Agent analysis failed: {e}"
