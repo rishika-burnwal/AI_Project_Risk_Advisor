@@ -206,4 +206,4 @@ Review the list to avoid publishing sensitive information or excluding files req
 
 ## License
 
-No license has been specified yet. Add a `LICENSE` file before presenting the repository as open source.
+This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
